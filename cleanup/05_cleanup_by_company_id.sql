@@ -1,31 +1,83 @@
-BEGIN;
+-- 05_cleanup_by_company_id.sql
+-- Cleanup all test data associated with a company
 
--- Preview data before deletion
-SELECT
-    c.id AS company_id,
-    c.name AS company_name,
-    COUNT(DISTINCT u.id) AS users_to_delete,
-    COUNT(DISTINCT r.id) AS records_to_delete,
-    COUNT(DISTINCT o.id) AS operations_to_delete
-FROM companies c
-LEFT JOIN users u ON u.company_id = c.id
-LEFT JOIN records r ON r.company_id = c.id
-LEFT JOIN operations o ON o.company_id = c.id
-WHERE c.id = 1
-GROUP BY c.id, c.name;
+DO $$
+DECLARE
+    v_company_id INT := 1;
+BEGIN
 
+    RAISE NOTICE 'Starting cleanup for company_id: %', v_company_id;
 
--- Delete company
--- Related users, records and operations will be deleted automatically
--- if foreign keys were created with ON DELETE CASCADE
+    /*
+    ==========================================
+    PREVIEW DATA
+    ==========================================
+    */
 
-DELETE FROM companies
-WHERE id = 1;
+    RAISE NOTICE 'Preview records before cleanup';
 
+    /*
+    ==========================================
+    DELETE OPERATIONS
+    ==========================================
+    */
 
--- Validate company was deleted
-SELECT *
-FROM companies
-WHERE id = 1;
+    DELETE FROM operations
+    WHERE company_id = v_company_id;
 
-COMMIT;
+    RAISE NOTICE 'Operations deleted: %', FOUND;
+
+    /*
+    ==========================================
+    DELETE RECORDS
+    ==========================================
+    */
+
+    DELETE FROM records
+    WHERE company_id = v_company_id;
+
+    RAISE NOTICE 'Records deleted: %', FOUND;
+
+    /*
+    ==========================================
+    DELETE USERS
+    ==========================================
+    */
+
+    DELETE FROM users
+    WHERE company_id = v_company_id;
+
+    RAISE NOTICE 'Users deleted: %', FOUND;
+
+    /*
+    ==========================================
+    DELETE COMPANY
+    ==========================================
+    */
+
+    DELETE FROM companies
+    WHERE id = v_company_id;
+
+    RAISE NOTICE 'Company deleted: %', FOUND;
+
+    /*
+    ==========================================
+    VALIDATION
+    ==========================================
+    */
+
+    IF EXISTS (
+        SELECT 1
+        FROM companies
+        WHERE id = v_company_id
+    ) THEN
+
+        RAISE NOTICE 'Cleanup failed. Company still exists.';
+
+    ELSE
+
+        RAISE NOTICE 'Cleanup completed successfully for company_id: %', v_company_id;
+
+    END IF;
+
+END $$;
