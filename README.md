@@ -224,20 +224,6 @@ Este proyecto simula tareas comunes de QA backend como:
 
 ---
 
-# Posibles mejoras futuras
-
-- Stored Procedures
-- Functions
-- Triggers
-- Views
-- Índices
-- Docker Compose
-- Integración CI/CD
-- Automatización de generación de datos
-- Scripts de rollback
-
----
-
 # Autor
 
 Oriana Dinarelli
