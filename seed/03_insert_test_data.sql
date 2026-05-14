@@ -3,18 +3,26 @@ DECLARE
     v_company_alpha_id INT;
     v_company_beta_id INT;
 
-    v_user_admin_id INT;
-    v_user_qa_id INT;
-    v_user_analyst_id INT;
+    v_record_id INT;
+    v_user_id INT;
 
-    v_record_person_natural_id INT;
-    v_record_company_id INT;
-    v_record_beta_person_id INT;
+    v_total_users INT := 5;
+    v_total_records INT := 10;
+    v_total_operations INT := 20;
 
-    v_operation_transfer_id INT;
-    v_operation_purchase_id INT;
-    v_operation_review_id INT;
+    v_random_company_id INT;
+    v_random_record_id INT;
+    v_random_user_id INT;
+
+    i INT;
 BEGIN
+
+    /*
+    ==========================================
+    CREATE COMPANIES
+    ==========================================
+    */
+
     INSERT INTO companies (name, country)
     VALUES ('Alpha Demo Company', 'Chile')
     RETURNING id INTO v_company_alpha_id;
@@ -23,145 +31,169 @@ BEGIN
     VALUES ('Beta Demo Company', 'Argentina')
     RETURNING id INTO v_company_beta_id;
 
-    INSERT INTO users (company_id, full_name, email, role)
-    VALUES
-        (v_company_alpha_id, 'Admin User Demo', 'admin@alpha-demo.com', 'Admin')
-    RETURNING id INTO v_user_admin_id;
+    /*
+    ==========================================
+    CREATE USERS
+    ==========================================
+    */
 
-    INSERT INTO users (company_id, full_name, email, role)
-    VALUES
-        (v_company_alpha_id, 'QA User Demo', 'qa@alpha-demo.com', 'QA Analyst')
-    RETURNING id INTO v_user_qa_id;
+    FOR i IN 1..v_total_users LOOP
 
-    INSERT INTO users (company_id, full_name, email, role)
-    VALUES
-        (v_company_beta_id, 'Risk Analyst Demo', 'analyst@beta-demo.com', 'Risk Analyst')
-    RETURNING id INTO v_user_analyst_id;
-
-    INSERT INTO records (
-        company_id,
-        record_type,
-        document_number,
-        full_name,
-        business_name,
-        risk_level
-    )
-    VALUES
-        (
-            v_company_alpha_id,
-            'PERSON',
-            '11111111-1',
-            'Persona Demo Uno',
-            NULL,
-            'LOW'
+        INSERT INTO users (
+            company_id,
+            full_name,
+            email,
+            role
         )
-    RETURNING id INTO v_record_person_natural_id;
+        VALUES (
+            CASE
+                WHEN i % 2 = 0 THEN v_company_alpha_id
+                ELSE v_company_beta_id
+            END,
+            'Test User ' || i,
+            'testuser' || i || '@demo.com',
+            CASE
+                WHEN i % 3 = 0 THEN 'QA Analyst'
+                WHEN i % 2 = 0 THEN 'Developer'
+                ELSE 'Risk Analyst'
+            END
+        );
 
-    INSERT INTO records (
-        company_id,
-        record_type,
-        document_number,
-        full_name,
-        business_name,
-        risk_level
-    )
-    VALUES
-        (
-            v_company_alpha_id,
-            'COMPANY',
-            '22222222-2',
-            NULL,
-            'Business Demo Alpha',
-            'MEDIUM'
+    END LOOP;
+
+    /*
+    ==========================================
+    CREATE RECORDS
+    ==========================================
+    */
+
+    FOR i IN 1..v_total_records LOOP
+
+        INSERT INTO records (
+            company_id,
+            record_type,
+            document_number,
+            full_name,
+            business_name,
+            risk_level
         )
-    RETURNING id INTO v_record_company_id;
+        VALUES (
+            CASE
+                WHEN i % 2 = 0 THEN v_company_alpha_id
+                ELSE v_company_beta_id
+            END,
 
-    INSERT INTO records (
-        company_id,
-        record_type,
-        document_number,
-        full_name,
-        business_name,
-        risk_level
-    )
-    VALUES
-        (
-            v_company_beta_id,
-            'PERSON',
-            '33333333-3',
-            'Persona Demo Beta',
-            NULL,
-            'HIGH'
+            CASE
+                WHEN i % 2 = 0 THEN 'PERSON'
+                ELSE 'COMPANY'
+            END,
+
+            'DOC-' || LPAD(i::TEXT, 5, '0'),
+
+            CASE
+                WHEN i % 2 = 0 THEN 'Person Demo ' || i
+                ELSE NULL
+            END,
+
+            CASE
+                WHEN i % 2 != 0 THEN 'Business Demo ' || i
+                ELSE NULL
+            END,
+
+            CASE
+                WHEN i % 3 = 0 THEN 'HIGH'
+                WHEN i % 2 = 0 THEN 'MEDIUM'
+                ELSE 'LOW'
+            END
+        );
+
+    END LOOP;
+
+    /*
+    ==========================================
+    CREATE OPERATIONS
+    ==========================================
+    */
+
+    FOR i IN 1..v_total_operations LOOP
+
+        /*
+        RANDOM COMPANY
+        */
+
+        v_random_company_id :=
+            CASE
+                WHEN random() < 0.5 THEN v_company_alpha_id
+                ELSE v_company_beta_id
+            END;
+
+        /*
+        RANDOM USER
+        */
+
+        SELECT id
+        INTO v_random_user_id
+        FROM users
+        WHERE company_id = v_random_company_id
+        ORDER BY random()
+        LIMIT 1;
+
+        /*
+        RANDOM RECORD
+        */
+
+        SELECT id
+        INTO v_random_record_id
+        FROM records
+        WHERE company_id = v_random_company_id
+        ORDER BY random()
+        LIMIT 1;
+
+        /*
+        INSERT OPERATION
+        */
+
+        INSERT INTO operations (
+            company_id,
+            record_id,
+            created_by,
+            operation_type,
+            amount,
+            currency,
+            status
         )
-    RETURNING id INTO v_record_beta_person_id;
+        VALUES (
+            v_random_company_id,
 
-    INSERT INTO operations (
-        company_id,
-        record_id,
-        created_by,
-        operation_type,
-        amount,
-        currency,
-        status
-    )
-    VALUES
-        (
-            v_company_alpha_id,
-            v_record_person_natural_id,
-            v_user_admin_id,
-            'TRANSFER',
-            150000.00,
-            'CLP',
-            'APPROVED'
-        )
-    RETURNING id INTO v_operation_transfer_id;
+            v_random_record_id,
 
-    INSERT INTO operations (
-        company_id,
-        record_id,
-        created_by,
-        operation_type,
-        amount,
-        currency,
-        status
-    )
-    VALUES
-        (
-            v_company_alpha_id,
-            v_record_company_id,
-            v_user_qa_id,
-            'PURCHASE',
-            2500.00,
-            'USD',
-            'PENDING_REVIEW'
-        )
-    RETURNING id INTO v_operation_purchase_id;
+            v_random_user_id,
 
-    INSERT INTO operations (
-        company_id,
-        record_id,
-        created_by,
-        operation_type,
-        amount,
-        currency,
-        status
-    )
-    VALUES
-        (
-            v_company_beta_id,
-            v_record_beta_person_id,
-            v_user_analyst_id,
-            'TRANSFER',
-            500000.00,
-            'ARS',
-            'REJECTED'
-        )
-    RETURNING id INTO v_operation_review_id;
+            CASE
+                WHEN i % 3 = 0 THEN 'TRANSFER'
+                WHEN i % 2 = 0 THEN 'PURCHASE'
+                ELSE 'PAYMENT'
+            END,
 
-    RAISE NOTICE 'Test data inserted successfully.';
-    RAISE NOTICE 'Alpha Demo Company ID: %', v_company_alpha_id;
-    RAISE NOTICE 'Beta Demo Company ID: %', v_company_beta_id;
-    RAISE NOTICE 'Operation Transfer ID: %', v_operation_transfer_id;
-    RAISE NOTICE 'Operation Purchase ID: %', v_operation_purchase_id;
-    RAISE NOTICE 'Operation Review ID: %', v_operation_review_id;
+            ROUND((random() * 1000000)::NUMERIC, 2),
+
+            CASE
+                WHEN i % 2 = 0 THEN 'USD'
+                ELSE 'CLP'
+            END,
+
+            CASE
+                WHEN i % 4 = 0 THEN 'REJECTED'
+                WHEN i % 3 = 0 THEN 'PENDING_REVIEW'
+                ELSE 'APPROVED'
+            END
+        );
+
+    END LOOP;
+
+    RAISE NOTICE 'Test data generated successfully.';
+    RAISE NOTICE 'Users created: %', v_total_users;
+    RAISE NOTICE 'Records created: %', v_total_records;
+    RAISE NOTICE 'Operations created: %', v_total_operations;
+
 END $$;
